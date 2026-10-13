@@ -3,6 +3,7 @@ import struct
 import zipfile
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from extray import manifest
@@ -106,3 +107,23 @@ def test_scan_shows_localized_name(tmp_path):
         z.writestr("_locales/fr/messages.json", json.dumps({"appName": {"message": "Mon Extension"}}))
     result = CliRunner().invoke(app, ["scan", str(zpath)], env={"COLUMNS": "200"})
     assert "Mon Extension 1.0" in result.output
+
+
+def _war_severity(war, manifest_version=3):
+    text = json.dumps({"manifest_version": manifest_version, "web_accessible_resources": war})
+    return [f.severity for f in manifest.analyze(text) if f.rule == "manifest.web-accessible-html"]
+
+
+@pytest.mark.parametrize("war, expected", [
+    ([{"resources": ["page.html"], "matches": ["<all_urls>"]}], ["medium"]),
+    ([{"resources": ["page.html"], "matches": ["*://*/*"]}], ["medium"]),
+    ([{"resources": ["page.html"], "matches": ["<all_urls>"], "use_dynamic_url": True}], ["low"]),
+    ([{"resources": ["page.html"], "matches": ["https://example.com/*"]}], ["low"]),
+    ([{"resources": ["logo.png"], "matches": ["<all_urls>"]}], []),
+])
+def test_web_accessible_resources_mv3(war, expected):
+    assert _war_severity(war) == expected
+
+
+def test_web_accessible_resources_mv2():
+    assert _war_severity(["page.html"], manifest_version=2) == ["medium"]

@@ -76,10 +76,15 @@ def analyze(text: str, file: str = "manifest.json") -> list[Finding]:
         add("manifest.externally-connectable", "medium", "any extension can message the extension", '"ids"')
 
     for entry in m.get("web_accessible_resources", []):
-        # MV2: list of strings, MV3: list of {resources, matches}
-        for r in [entry] if isinstance(entry, str) else entry.get("resources", []):
+        if isinstance(entry, str):  # MV2: no matches, exposed to every website
+            resources, everywhere = [entry], True
+        else:  # MV3: use_dynamic_url makes the URL unguessable for websites
+            resources = entry.get("resources", [])
+            everywhere = any(_all_hosts(p) for p in entry.get("matches", [])) and not entry.get("use_dynamic_url")
+        for r in resources:
             if r.endswith((".html", "*")):
-                add("manifest.web-accessible-html", "medium", f"internal page exposed to websites: {r}", json.dumps(r))
+                add("manifest.web-accessible-html", "medium" if everywhere else "low",
+                    f"internal page exposed to websites: {r}", json.dumps(r))
 
     csp = m.get("content_security_policy", "")
     for policy in csp.values() if isinstance(csp, dict) else [csp]:
