@@ -81,6 +81,23 @@ def unknown_method_zip():
     return _patch_headers(make_zip({"a.js": b"1"}), ((8, 10), (77).to_bytes(2, "little")))  # compression method
 
 
+def corrupt_zip(method):
+    """One-file zip whose compressed stream is overwritten with 0xFF just past the codec header."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", method) as z:
+        z.writestr("a.js", b"console.log(1);\n" * 200)
+    data = bytearray(buf.getvalue())
+    start = 30 + int.from_bytes(data[26:28], "little") + int.from_bytes(data[28:30], "little")
+    skip = 13 if method == zipfile.ZIP_LZMA else 4  # lzma: version + props size + props, bzip2: "BZh9"
+    data[start + skip : start + 30] = b"\xff" * (30 - skip)
+    return bytes(data)
+
+
+def test_corrupt_lzma_stream():
+    with pytest.raises(ValueError, match="cannot extract a.js: Corrupt input data"):
+        extract(corrupt_zip(zipfile.ZIP_LZMA))
+
+
 def test_encrypted_zip():
     with pytest.raises(ValueError, match="cannot extract a.js: .*encrypted"):
         extract(encrypted_zip())
@@ -94,6 +111,8 @@ def test_unknown_compression_method():
 @pytest.mark.parametrize("data, message", [
     (encrypted_zip(), "encrypted"),
     (unknown_method_zip(), "compression method"),
+    (corrupt_zip(zipfile.ZIP_LZMA), "cannot extract a.js: Corrupt input data"),
+    (corrupt_zip(zipfile.ZIP_BZIP2), "Invalid data stream"),
     (b"PK not a zip", "error:"),
     (make_zip({"bomb.js": b"\0" * (4 * 1024 * 1024)}), "zip bomb"),
 ])

@@ -1,4 +1,5 @@
 import io
+import lzma
 import zipfile
 import zlib
 from pathlib import Path
@@ -33,7 +34,7 @@ def extract(data: bytes, max_total=MAX_TOTAL, max_files=MAX_FILES, max_ratio=MAX
                         raise ValueError(f"{info.filename}: compression ratio above {max_ratio}, possible zip bomb")
                     chunks.append(chunk)
         # zipfile raises these for encrypted entries, unsupported methods and corrupt streams
-        except (RuntimeError, NotImplementedError, zlib.error, EOFError) as e:
+        except (RuntimeError, NotImplementedError, zlib.error, lzma.LZMAError, EOFError) as e:
             reason = "file is encrypted (password protected)" if info.flag_bits & 1 else e
             raise ValueError(f"cannot extract {info.filename}: {reason}") from e
         files[info.filename] = b"".join(chunks)
