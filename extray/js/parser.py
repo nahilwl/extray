@@ -83,15 +83,34 @@ class JSFile:
         return sorted(found, key=lambda n: n.start_byte)
 
     def function(self, node: Node) -> Node | None:
-        """The function a callback argument refers to: inline, or declared by name in this file."""
+        """The function a callback argument refers to: inline, or declared by name in an enclosing scope.
+
+        Minified code reuses short names in every scope, so the nearest declaration wins; a parameter
+        or a non-function declaration with that name means the callback is not known statically.
+        """
         if node.type in FUNCTION_TYPES:
             return node
         if node.type != "identifier":
             return None  # e.g. this.handler.bind(this): not resolved
-        for decl in self.nodes("function_declaration", "variable_declarator"):
-            value = decl if decl.type == "function_declaration" else decl.child_by_field_name("value")
-            if decl.child_by_field_name("name").text == node.text and value and value.type in FUNCTION_TYPES:
-                return value
+        scope = node.parent
+        while scope is not None:
+            if scope.type in FUNCTION_TYPES + ("method_definition",) and any(
+                    node.text in {n.text for n in self.nodes("identifier", root=p)} for p in params(scope)):
+                return None  # function(o) { addEventListener("message", o) }
+            if scope.type in ("statement_block", "program"):
+                for stmt in scope.named_children:
+                    stmt = stmt.child_by_field_name("declaration") or stmt if stmt.type == "export_statement" else stmt
+                    if stmt.type in ("function_declaration", "generator_function_declaration"):
+                        decls = [(stmt.child_by_field_name("name"), stmt)]
+                    elif stmt.type in ("lexical_declaration", "variable_declaration"):
+                        decls = [(d.child_by_field_name("name"), d.child_by_field_name("value"))
+                                 for d in stmt.named_children if d.type == "variable_declarator"]
+                    else:
+                        continue
+                    for name, value in decls:
+                        if name is not None and name.text == node.text:
+                            return value if value is not None and value.type in FUNCTION_TYPES else None
+            scope = scope.parent
         return None
 
     def position(self, node: Node) -> tuple[int, int]:

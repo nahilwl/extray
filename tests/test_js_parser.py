@@ -46,3 +46,31 @@ def test_cli_max_js_size_option(tmp_path):
         z.writestr("big.js", "x" * 11)
     result = CliRunner().invoke(app, ["scan", str(path), "--max-js-size", "10"], env={"COLUMNS": "200"})
     assert result.exit_code == 0 and "js.too-large" in result.output
+
+
+def _handler(src):
+    from extray.js.dataflow import listeners
+
+    js = JSFile("a.js", src.encode())
+    fn = listeners(js)[0].handler
+    return fn and fn.text.decode()
+
+
+def test_handler_resolution_follows_scopes():
+    # minified bundles reuse names: the nearest declaration wins
+    src = """
+function o(e) { return "wrong"; }
+function setup() {
+  const o = (e) => run(e.data);
+  window.addEventListener("message", o);
+}
+"""
+    assert _handler(src) == "(e) => run(e.data)"
+    assert _handler('function o(e) { a(e); }\nwindow.addEventListener("message", o);') == "function o(e) { a(e); }"
+    assert _handler('export function o(e) { a(e); }\nwindow.addEventListener("message", o);') == "function o(e) { a(e); }"
+
+
+def test_handler_shadowed_by_a_parameter_is_unresolved():
+    src = 'function o(e) {}\nfunction on(o) { window.addEventListener("message", o); }'
+    assert _handler(src) is None
+    assert _handler('let o = 1;\nwindow.addEventListener("message", o);') is None
