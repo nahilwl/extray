@@ -2,7 +2,9 @@ import io
 import zipfile
 
 import pytest
+from typer.testing import CliRunner
 
+from extray.cli import app
 from extray.fetch import chrome
 from extray.unpack import extract
 
@@ -59,3 +61,46 @@ def test_lying_header_is_rejected():
     data[cd + 24 : cd + 28] = (10).to_bytes(4, "little")  # central directory uncompressed size
     with pytest.raises(zipfile.BadZipFile, match="CRC"):
         extract(bytes(data))
+
+
+def _patch_headers(data, offsets):
+    """Patch the same field in the local header and the central directory of a one-file zip."""
+    data = bytearray(data)
+    (local_off, cd_off), value = offsets
+    cd = data.rfind(b"PK\x01\x02")
+    data[local_off : local_off + 2] = value
+    data[cd + cd_off : cd + cd_off + 2] = value
+    return bytes(data)
+
+
+def encrypted_zip():
+    return _patch_headers(make_zip({"a.js": b"1"}), ((6, 8), (1).to_bytes(2, "little")))  # flag bit 0
+
+
+def unknown_method_zip():
+    return _patch_headers(make_zip({"a.js": b"1"}), ((8, 10), (77).to_bytes(2, "little")))  # compression method
+
+
+def test_encrypted_zip():
+    with pytest.raises(ValueError, match="cannot extract a.js: .*encrypted"):
+        extract(encrypted_zip())
+
+
+def test_unknown_compression_method():
+    with pytest.raises(ValueError, match="cannot extract a.js: .*compression method"):
+        extract(unknown_method_zip())
+
+
+@pytest.mark.parametrize("data, message", [
+    (encrypted_zip(), "encrypted"),
+    (unknown_method_zip(), "compression method"),
+    (b"PK not a zip", "error:"),
+    (make_zip({"bomb.js": b"\0" * (4 * 1024 * 1024)}), "zip bomb"),
+])
+def test_cli_reports_extraction_errors_cleanly(tmp_path, data, message):
+    path = tmp_path / "ext.zip"
+    path.write_bytes(data)
+    result = CliRunner().invoke(app, ["scan", str(path)])
+    assert result.exit_code == 1
+    assert isinstance(result.exception, SystemExit)  # no uncaught exception, so no traceback
+    assert result.output.startswith("error: ") and message in result.output

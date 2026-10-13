@@ -1,5 +1,6 @@
 import io
 import zipfile
+import zlib
 from pathlib import Path
 
 from extray.fetch import chrome
@@ -21,15 +22,20 @@ def extract(data: bytes, max_total=MAX_TOTAL, max_files=MAX_FILES, max_ratio=MAX
     files, total = {}, 0
     for info in infos:
         chunks, size = [], 0
-        with z.open(info) as f:
-            while chunk := f.read(64 * 1024):
-                size += len(chunk)
-                total += len(chunk)
-                if total > max_total:
-                    raise ValueError(f"zip decompresses to more than {max_total} bytes, aborted")
-                if size > RATIO_MIN_SIZE and size > max_ratio * max(info.compress_size, 1):
-                    raise ValueError(f"{info.filename}: compression ratio above {max_ratio}, possible zip bomb")
-                chunks.append(chunk)
+        try:
+            with z.open(info) as f:
+                while chunk := f.read(64 * 1024):
+                    size += len(chunk)
+                    total += len(chunk)
+                    if total > max_total:
+                        raise ValueError(f"zip decompresses to more than {max_total} bytes, aborted")
+                    if size > RATIO_MIN_SIZE and size > max_ratio * max(info.compress_size, 1):
+                        raise ValueError(f"{info.filename}: compression ratio above {max_ratio}, possible zip bomb")
+                    chunks.append(chunk)
+        # zipfile raises these for encrypted entries, unsupported methods and corrupt streams
+        except (RuntimeError, NotImplementedError, zlib.error, EOFError) as e:
+            reason = "file is encrypted (password protected)" if info.flag_bits & 1 else e
+            raise ValueError(f"cannot extract {info.filename}: {reason}") from e
         files[info.filename] = b"".join(chunks)
     return files
 
