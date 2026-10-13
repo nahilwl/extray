@@ -5,7 +5,8 @@ description = "X-ray browser extensions: malware verdict, exploitable vulns, ver
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
-dependencies = ["typer", "rich", "tree-sitter>=0.25", "tree-sitter-javascript>=0.23", "jsbeautifier"]
+# tree-sitter 0.26.0 segfaults during garbage collection on large extensions (e.g. Google Translate)
+dependencies = ["typer", "rich", "tree-sitter>=0.25,<0.26", "tree-sitter-javascript>=0.23", "jsbeautifier"]
 
 [project.optional-dependencies]
 dev = ["pytest"]
