@@ -5,6 +5,7 @@ from a copy of the taints of its enclosing function at the point where it is def
 unknown functions stop the taint: reliable rather than exhaustive.
 """
 
+import re
 from dataclasses import dataclass
 
 from tree_sitter import Node
@@ -15,6 +16,10 @@ from extray.js.parser import FUNCTION_TYPES, JSFile, args, callee, params, strin
 SCOPE_TYPES = (*FUNCTION_TYPES, "method_definition")
 SENDER_CHECKS = {b"url", b"id", b"origin"}  # reading one of these on sender counts as checking it
 GLOBALS = ("", "window.", "self.", "globalThis.")
+
+# MessagePort, Worker, BroadcastChannel, WebSocket, EventSource: their "message" events come from a
+# private channel or a known server, not from any window, so there is no origin to check
+NOT_A_WINDOW = re.compile(r"port|worker|channel|socket|source", re.IGNORECASE)
 
 # sinks
 EVAL = {g + f for g in GLOBALS for f in ("eval", "Function")}
@@ -70,8 +75,9 @@ def listeners(js: JSFile) -> list[Listener]:
     found = []
     for call in js.nodes("call_expression"):
         name, a = callee(call), args(call)
+        receiver = name.rpartition(".")[0].rpartition(".")[2]  # u(this).port.addEventListener -> "port"
         if (name == "addEventListener" or name.endswith(".addEventListener")) and len(a) >= 2 \
-                and string_value(a[0]) == "message":
+                and string_value(a[0]) == "message" and not NOT_A_WINDOW.search(receiver):
             found.append(Listener(call, js.function(a[1]), "window_message"))
         elif a and name.endswith(("runtime.onMessage.addListener", "runtime.onMessageExternal.addListener")):
             kind = "external_message" if "External" in name else "runtime_message"

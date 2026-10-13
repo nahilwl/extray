@@ -21,3 +21,11 @@ window.addEventListener("message", (event) => {
 
 window.addEventListener("click", (e) => go(e.target)); // not a message listener
 window.addEventListener("message", this.handler.bind(this)); // INFO: not resolvable, reported as not analyzed
+
+// not window messages: no origin to check
+const channel = new MessageChannel();
+channel.port1.addEventListener("message", (e) => run(e.data));
+worker.addEventListener("message", (e) => run(e.data));
+navigator.serviceWorker.addEventListener("message", (e) => run(e.data));
+new BroadcastChannel("sync").addEventListener("message", (e) => run(e.data));
+this.socket.addEventListener("message", (e) => run(e.data));
