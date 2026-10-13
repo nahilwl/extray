@@ -20,4 +20,4 @@ window.addEventListener("message", (event) => {
 });
 
 window.addEventListener("click", (e) => go(e.target)); // not a message listener
-window.addEventListener("message", this.handler.bind(this)); // not resolvable, not reported
+window.addEventListener("message", this.handler.bind(this)); // INFO: not resolvable, reported as not analyzed

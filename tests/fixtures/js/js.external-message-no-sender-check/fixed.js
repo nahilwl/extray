@@ -16,3 +16,4 @@ function handleExternal(msg, sender, reply) {
 browser.runtime.onMessageExternal.addListener(handleExternal);
 
 chrome.runtime.onMessage.addListener((msg, sender) => run(msg)); // internal messages: other rules
+chrome.runtime.onMessageExternal.addListener(router.dispatch.bind(router)); // INFO: not resolvable, reported as not analyzed

@@ -16,8 +16,9 @@ class MessageNoOriginCheck(Rule):
             if len(a) < 2 or string_value(a[0]) != "message":
                 continue
             handler = js.function(a[1])
-            if handler is None:
-                continue  # handler not resolvable statically
+            if handler is None:  # e.g. this.handler.bind(this): say it was not analyzed rather than stay silent
+                yield js.finding(self, call, "handler not resolvable statically, not analyzed", "info")
+                continue
             event = params(handler)
             if not event or not js.reads_property(handler, event[0], {b"origin"}):
                 yield js.finding(self, call, "message listener without event.origin check")

@@ -15,8 +15,9 @@ class ExternalMessageNoSenderCheck(Rule):
             if not callee(call).endswith("runtime.onMessageExternal.addListener") or not a:
                 continue
             handler = js.function(a[0])
-            if handler is None:
-                continue  # handler not resolvable statically
+            if handler is None:  # e.g. this.handler.bind(this): say it was not analyzed rather than stay silent
+                yield js.finding(self, call, "handler not resolvable statically, not analyzed", "info")
+                continue
             p = params(handler)
             if len(p) < 2 or not js.reads_property(handler, p[1], SENDER_CHECKS):
                 yield js.finding(self, call, "external message listener without sender.url/id/origin check")

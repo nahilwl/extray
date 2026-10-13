@@ -18,18 +18,24 @@ def test_every_js_rule_has_fixtures():
     assert {p.name for p in RULE_DIRS} == {i for i in RULES if i.startswith("js.")}
 
 
+def check_markers(rule_id, path):
+    # fixture convention: lines that must be reported contain "VULN", lines with an expected info finding "INFO"
+    lines = path.read_text().splitlines()
+    expected = [(n, "info" if "INFO" in line else "vuln") for n, line in enumerate(lines, 1) if "VULN" in line or "INFO" in line]
+    found = [(f.line, "info" if f.severity == "info" else "vuln") for f in run(rule_id, path)]
+    assert found == expected
+    return expected
+
+
 @pytest.mark.parametrize("rule_dir", RULE_DIRS, ids=lambda p: p.name)
 def test_vulnerable_fixture(rule_dir):
-    # fixture convention: every line that must be reported contains "VULN"
-    path = rule_dir / "vuln.js"
-    expected = [n for n, line in enumerate(path.read_text().splitlines(), 1) if "VULN" in line]
-    assert expected
-    assert [f.line for f in run(rule_dir.name, path)] == expected
+    assert any(kind == "vuln" for _, kind in check_markers(rule_dir.name, rule_dir / "vuln.js"))
 
 
 @pytest.mark.parametrize("rule_dir", RULE_DIRS, ids=lambda p: p.name)
 def test_fixed_fixture(rule_dir):
-    assert run(rule_dir.name, rule_dir / "fixed.js") == []
+    # a fixed file may still have info findings (blind spots), never a real one
+    assert all(kind == "info" for _, kind in check_markers(rule_dir.name, rule_dir / "fixed.js"))
 
 
 def test_minified_bundle_positions():
