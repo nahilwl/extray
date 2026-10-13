@@ -4,7 +4,7 @@ from rich.table import Table
 
 from extray.rules.base import Finding
 
-COLORS = {"low": "cyan", "medium": "yellow", "high": "bold red"}
+COLORS = {"info": "dim", "low": "cyan", "medium": "yellow", "high": "bold red"}
 
 
 def render(title: str, findings: list[Finding], console: Console | None = None) -> None:
@@ -17,5 +17,5 @@ def render(title: str, findings: list[Finding], console: Console | None = None) 
         table.add_column(col, overflow="fold")
     for f in findings:
         c = COLORS[f.severity]
-        table.add_row(f"[{c}]{f.severity}[/]", f.rule, escape(f.message), escape(f"{f.file}:{f.line}"), escape(f.evidence))
+        table.add_row(f"[{c}]{f.severity}[/]", f.rule, escape(f.message), escape(f"{f.file}:{f.line}" + (f":{f.column}" if f.column else "")), escape(f.evidence))
     console.print(table)
