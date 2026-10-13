@@ -1,7 +1,6 @@
-from extray.js.parser import args, callee, params
+from extray.js.dataflow import SENDER_CHECKS, listeners
+from extray.js.parser import params
 from extray.rules.base import Rule
-
-SENDER_CHECKS = {b"url", b"id", b"origin"}
 
 
 class ExternalMessageNoSenderCheck(Rule):
@@ -10,14 +9,12 @@ class ExternalMessageNoSenderCheck(Rule):
     description = "onMessageExternal listener that never reads sender.url/id/origin: any allowed site or extension is trusted"
 
     def check_js(self, js):
-        for call in js.nodes("call_expression"):
-            a = args(call)
-            if not callee(call).endswith("runtime.onMessageExternal.addListener") or not a:
+        for lst in listeners(js):
+            if lst.kind != "external_message":
                 continue
-            handler = js.function(a[0])
-            if handler is None:  # e.g. this.handler.bind(this): say it was not analyzed rather than stay silent
-                yield js.finding(self, call, "handler not resolvable statically, not analyzed", "info")
+            if lst.handler is None:  # e.g. this.handler.bind(this): say it was not analyzed rather than stay silent
+                yield js.finding(self, lst.call, "handler not resolvable statically, not analyzed", "info")
                 continue
-            p = params(handler)
-            if len(p) < 2 or not js.reads_property(handler, p[1], SENDER_CHECKS):
-                yield js.finding(self, call, "external message listener without sender.url/id/origin check")
+            p = params(lst.handler)
+            if len(p) < 2 or not js.reads_property(lst.handler, p[1], SENDER_CHECKS):
+                yield js.finding(self, lst.call, "external message listener without sender.url/id/origin check")

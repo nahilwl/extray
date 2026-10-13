@@ -55,8 +55,10 @@ def test_minified_bundle_positions():
     assert {(f.rule, f.line, f.column) for f in findings} == {
         ("js.message-no-origin-check", *at("window.addEventListener")),
         ("js.html-sink", *at("document.body.innerHTML")),
+        ("js.flow-html", *at("document.body.innerHTML")),
         ("js.external-message-no-sender-check", *at("chrome.runtime.onMessageExternal")),
         ("js.code-exec", *at("eval(n.c)")),
+        ("js.flow-code-exec", *at("eval(n.c)")),
     }
     assert all(f.file == "dist/bundle.min.js" for f in findings)
     listener = next(f for f in findings if f.rule == "js.message-no-origin-check")

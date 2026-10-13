@@ -12,6 +12,7 @@ from tree_sitter import Node
 from extray.js.parser import FUNCTION_TYPES, JSFile, args, callee, params, string_value
 
 SCOPE_TYPES = (*FUNCTION_TYPES, "method_definition")
+SENDER_CHECKS = {b"url", b"id", b"origin"}  # reading one of these on sender counts as checking it
 GLOBALS = ("", "window.", "self.", "globalThis.")
 
 # sinks
@@ -88,10 +89,10 @@ def path(node: Node) -> str | None:
         return text(node)
     if t == "member_expression":
         base = path(node.child_by_field_name("object"))
-        return base and f"{base}.{text(node.child_by_field_name('property'))}"
+        return f"{base}.{text(node.child_by_field_name('property'))}" if base else None
     if t == "subscript_expression":
         base, key = path(node.child_by_field_name("object")), string_value(node.child_by_field_name("index"))
-        return base and key is not None and f"{base}.{key}"
+        return f"{base}.{key}" if base and key is not None else None
     return None
 
 
@@ -155,7 +156,7 @@ class _Analysis:
                 continue
             p = params(fn)
             checked = (lst.kind == "window_message" and js.reads_property(fn, p[0], {b"origin"})) or (
-                lst.kind == "external_message" and len(p) > 1 and js.reads_property(fn, p[1], {b"url", b"id", b"origin"}))
+                lst.kind == "external_message" and len(p) > 1 and js.reads_property(fn, p[1], SENDER_CHECKS))
             if not checked:
                 self.seeds[(fn.start_byte, fn.end_byte)] = lst.kind
 
@@ -333,3 +334,16 @@ def flows(js: JSFile) -> list[Flow]:
     if getattr(js, "_flows", None) is None:
         js._flows = _Analysis(js).run()
     return js._flows
+
+
+class FlowRule:
+    """Mixin for the flow rules: one finding per flow into a sink of `sink_kind`."""
+
+    sink_kind = ""
+
+    def check_js(self, js):
+        for f in flows(js):
+            if f.sink.kind == self.sink_kind:
+                source_line = js.position(f.source.node)[0]
+                sink_line = js.position(f.node)[0]
+                yield js.finding(self, f.node, f"{f.source.label} (L{source_line}) → {f.sink.name} (L{sink_line})")
