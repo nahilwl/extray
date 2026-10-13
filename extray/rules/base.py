@@ -1,6 +1,7 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
 
-SEVERITIES = ("low", "medium", "high")
+SEVERITIES = ("info", "low", "medium", "high")
 
 
 @dataclass
@@ -11,3 +12,21 @@ class Finding:
     file: str
     line: int
     evidence: str
+    column: int = 0  # 1-based, 0 when only the line is meaningful
+
+
+class Rule:
+    """A check. One subclass per file in rules/vulns or rules/malware, loaded automatically.
+
+    `severity` is the default; a finding may override it.
+    """
+
+    id = ""
+    severity = "medium"
+    description = ""
+
+    def check_manifest(self, manifest) -> Iterable[Finding]:
+        return ()
+
+    def check_js(self, js) -> Iterable[Finding]:
+        return ()

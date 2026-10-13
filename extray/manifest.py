@@ -1,10 +1,8 @@
 import json
 import re
+from dataclasses import dataclass
 
 from extray.rules.base import Finding
-
-DANGEROUS_PERMISSIONS = {"cookies", "webRequest", "debugger", "nativeMessaging", "management", "history"}
-
 
 # a string literal (kept as is) or a comment (blanked out)
 _TOKEN = re.compile(r'"(?:\\.|[^"\\])*"|//[^\n]*|/\*.*?\*/', re.S)
@@ -36,7 +34,7 @@ def localize(m: dict, files: dict[str, bytes]) -> dict:
     return {**m, **{k: resolve(m[k]) for k in ("name", "description") if isinstance(m.get(k), str)}}
 
 
-def _all_hosts(pattern) -> bool:
+def all_hosts(pattern) -> bool:
     """True for <all_urls> and match patterns whose host is a bare `*` (*://*/*, https://*/*...)."""
     return isinstance(pattern, str) and (
         pattern == "<all_urls>" or pattern.partition("://")[2].split("/")[0] == "*"
@@ -49,60 +47,39 @@ def _line(text: str, needle: str) -> int:
     return text.count("\n", 0, pos) + 1 if pos >= 0 else 1
 
 
+@dataclass
+class Manifest:
+    """manifest.json as seen by rules: parsed data plus the text needed to locate findings."""
+
+    text: str  # original, for evidence
+    clean: str  # comments blanked out, so needles never match inside a comment
+    data: dict
+    file: str = "manifest.json"
+
+    @classmethod
+    def from_text(cls, text: str, file: str = "manifest.json") -> "Manifest":
+        clean = strip_comments(text)
+        data = json.loads(clean)
+        if not isinstance(data, dict):
+            raise ValueError(f"{file} is not a JSON object")
+        return cls(text, clean, data, file)
+
+    def permissions(self) -> list[str]:
+        return [p for p in self.data.get("permissions", []) + self.data.get("host_permissions", []) if isinstance(p, str)]
+
+    def csp_policies(self) -> list[str]:
+        csp = self.data.get("content_security_policy", "")
+        return [p for p in (csp.values() if isinstance(csp, dict) else [csp]) if isinstance(p, str)]
+
+    def finding(self, rule, message: str, needle: str, severity: str | None = None) -> Finding:
+        n = _line(self.clean, needle)
+        lines = self.text.splitlines() or [""]
+        return Finding(rule.id, severity or rule.severity, message, self.file, n, lines[n - 1].strip())
+
+
 def analyze(text: str, file: str = "manifest.json") -> list[Finding]:
-    lines = text.splitlines() or [""]
-    text = strip_comments(text)  # so needles never match inside a comment
-    m = json.loads(text)
-    findings = []
+    """Run every rule's manifest check."""
+    from extray.rules import load_rules  # rules import this module
 
-    def add(rule, severity, message, needle):
-        n = _line(text, needle)
-        findings.append(Finding(rule, severity, message, file, n, lines[n - 1].strip()))
-
-    if m.get("manifest_version") == 2:
-        add("manifest.mv2", "low", "Manifest V2 (deprecated, more permissive CSP)", '"manifest_version"')
-
-    for p in m.get("permissions", []) + m.get("host_permissions", []):
-        if p in DANGEROUS_PERMISSIONS:
-            add("manifest.dangerous-permission", "medium", f"dangerous permission: {p}", json.dumps(p))
-        elif _all_hosts(p):
-            add("manifest.all-hosts", "high", f"access to every website: {p}", json.dumps(p))
-
-    ec = m.get("externally_connectable", {})
-    for p in ec.get("matches", []):
-        if _all_hosts(p):
-            add("manifest.externally-connectable", "high", f"any website can message the extension: {p}", json.dumps(p))
-    if "*" in ec.get("ids", []):
-        add("manifest.externally-connectable", "medium", "any extension can message the extension", '"ids"')
-
-    for entry in m.get("web_accessible_resources", []):
-        if isinstance(entry, str):  # MV2: no matches, exposed to every website
-            resources, everywhere = [entry], True
-        else:  # MV3: use_dynamic_url makes the URL unguessable for websites
-            resources = entry.get("resources", [])
-            everywhere = any(_all_hosts(p) for p in entry.get("matches", [])) and not entry.get("use_dynamic_url")
-        for r in resources:
-            if r.endswith((".html", "*")):
-                add("manifest.web-accessible-html", "medium" if everywhere else "low",
-                    f"internal page exposed to websites: {r}", json.dumps(r))
-
-    csp = m.get("content_security_policy", "")
-    for policy in csp.values() if isinstance(csp, dict) else [csp]:
-        if "unsafe-eval" in policy:
-            add("manifest.csp-unsafe-eval", "high", "CSP allows 'unsafe-eval'", "unsafe-eval")
-        for directive in policy.split(";"):
-            name, *sources = directive.split() or [""]
-            if name in ("script-src", "default-src"):
-                for s in sources:
-                    if s.startswith(("http", "*", "data:")):
-                        add("manifest.csp-remote-script", "high", f"CSP allows remote scripts: {s}", s)
-
-    for cs in m.get("content_scripts", []):
-        if any(_all_hosts(p) for p in cs.get("matches", [])):
-            extras = [x for x, on in (("document_start", cs.get("run_at") == "document_start"),
-                                      ("all_frames", cs.get("all_frames"))) if on]
-            add("manifest.content-script-all-urls", "medium" if extras else "low",
-                "content script injected into every website" + (f" ({', '.join(extras)})" if extras else ""),
-                '"content_scripts"')
-
-    return findings
+    mf = Manifest.from_text(text, file)
+    return [f for rule in load_rules() for f in rule.check_manifest(mf)]
