@@ -1,3 +1,4 @@
+import json
 import struct
 import zipfile
 from pathlib import Path
@@ -72,3 +73,36 @@ def test_manifest_with_comments():
     assert m["description"] == 'escaped " quote then // still a string'
     findings = manifest.analyze(text)
     assert [(f.rule, f.line) for f in findings] == [("manifest.all-hosts", 11)]
+
+
+def _locale_files(messages):
+    return {"_locales/fr/messages.json": json.dumps(messages).encode()}
+
+
+LOCALIZED = {"name": "__MSG_AppName__", "description": "Desc: __MSG_appDesc__", "default_locale": "fr"}
+
+
+def test_localize_resolves_case_insensitive_keys():
+    files = _locale_files({"appname": {"message": "Mon Extension"}, "APPDESC": {"message": "Bonjour"}})
+    m = manifest.localize(LOCALIZED, files)
+    assert m["name"] == "Mon Extension" and m["description"] == "Desc: Bonjour"
+
+
+def test_localize_missing_key_keeps_raw_value():
+    m = manifest.localize(LOCALIZED, _locale_files({"appname": {"message": "Mon Extension"}}))
+    assert m["name"] == "Mon Extension" and m["description"] == "Desc: __MSG_appDesc__"
+
+
+def test_localize_missing_locale_keeps_raw_values():
+    assert manifest.localize(LOCALIZED, {}) == LOCALIZED
+    assert manifest.localize({k: v for k, v in LOCALIZED.items() if k != "default_locale"}, {})["name"] == "__MSG_AppName__"
+    assert manifest.localize(LOCALIZED, {"_locales/fr/messages.json": b"not json"}) == LOCALIZED
+
+
+def test_scan_shows_localized_name(tmp_path):
+    zpath = tmp_path / "ext.zip"
+    with zipfile.ZipFile(zpath, "w") as z:
+        z.writestr("manifest.json", json.dumps({**LOCALIZED, "version": "1.0", "manifest_version": 3}))
+        z.writestr("_locales/fr/messages.json", json.dumps({"appName": {"message": "Mon Extension"}}))
+    result = CliRunner().invoke(app, ["scan", str(zpath)], env={"COLUMNS": "200"})
+    assert "Mon Extension 1.0" in result.output

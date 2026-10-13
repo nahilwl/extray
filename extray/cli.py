@@ -19,10 +19,11 @@ def main():
 def scan(target: str = typer.Argument(..., help="Chrome Web Store ID or path to a .crx/.zip")):
     """Analyze an extension."""
     try:
-        text = load(target)["manifest.json"].decode("utf-8-sig")
+        files = load(target)
+        text = files["manifest.json"].decode("utf-8-sig")
         findings = manifest.analyze(text)
     except (OSError, ValueError, KeyError, zipfile.BadZipFile) as e:
         typer.echo(f"error: {e}", err=True)
         raise typer.Exit(1)
-    m = manifest.parse(text)
+    m = manifest.localize(manifest.parse(text), files)
     terminal.render(escape(f"{m.get('name', '?')} {m.get('version', '')}"), findings)

@@ -19,6 +19,23 @@ def parse(text: str) -> dict:
     return json.loads(strip_comments(text))
 
 
+def localize(m: dict, files: dict[str, bytes]) -> dict:
+    """Resolve __MSG_key__ in name/description from _locales/<default_locale>/messages.json.
+
+    Keys are case-insensitive; a missing locale, file or key keeps the raw value.
+    """
+    try:
+        raw = files[f"_locales/{m['default_locale']}/messages.json"].decode("utf-8-sig")
+        messages = {k.lower(): v["message"] for k, v in parse(raw).items()}
+    except (KeyError, ValueError, TypeError, AttributeError):
+        return m
+
+    def resolve(value):
+        return re.sub(r"__MSG_(\w+?)__", lambda k: str(messages.get(k[1].lower(), k[0])), value)
+
+    return {**m, **{k: resolve(m[k]) for k in ("name", "description") if isinstance(m.get(k), str)}}
+
+
 def _all_hosts(pattern) -> bool:
     """True for <all_urls> and match patterns whose host is a bare `*` (*://*/*, https://*/*...)."""
     return isinstance(pattern, str) and (
