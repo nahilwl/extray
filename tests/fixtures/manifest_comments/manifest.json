@@ -1,0 +1,12 @@
+// Chrome accepts comments in manifest.json
+{
+  "name": "Commented /* not a comment */ Fixture",
+  "version": "1.0",
+  /* block comment
+     with "cookies" inside, must not be reported */
+  "manifest_version": 3,
+  "homepage_url": "https://example.com/a//b", // URL with // inside a string
+  "description": "escaped \" quote then // still a string",
+  "permissions": ["storage"], // "debugger" in a comment
+  "host_permissions": ["https://*/*"]
+}

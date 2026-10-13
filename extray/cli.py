@@ -1,4 +1,3 @@
-import json
 import zipfile
 
 import typer
@@ -25,5 +24,5 @@ def scan(target: str = typer.Argument(..., help="Chrome Web Store ID or path to 
     except (OSError, ValueError, KeyError, zipfile.BadZipFile) as e:
         typer.echo(f"error: {e}", err=True)
         raise typer.Exit(1)
-    m = json.loads(text)
+    m = manifest.parse(text)
     terminal.render(escape(f"{m.get('name', '?')} {m.get('version', '')}"), findings)

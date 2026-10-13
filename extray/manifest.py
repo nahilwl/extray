@@ -1,8 +1,22 @@
 import json
+import re
 
 from extray.rules.base import Finding
 
 DANGEROUS_PERMISSIONS = {"cookies", "webRequest", "debugger", "nativeMessaging", "management", "history"}
+
+
+# a string literal (kept as is) or a comment (blanked out)
+_TOKEN = re.compile(r'"(?:\\.|[^"\\])*"|//[^\n]*|/\*.*?\*/', re.S)
+
+
+def strip_comments(text: str) -> str:
+    """Blank out // and /* */ comments outside strings, like Chrome does, keeping line numbers."""
+    return _TOKEN.sub(lambda t: t[0] if t[0][0] == '"' else re.sub(r"[^\n]", " ", t[0]), text)
+
+
+def parse(text: str) -> dict:
+    return json.loads(strip_comments(text))
 
 
 def _all_hosts(pattern) -> bool:
@@ -19,8 +33,9 @@ def _line(text: str, needle: str) -> int:
 
 
 def analyze(text: str, file: str = "manifest.json") -> list[Finding]:
-    m = json.loads(text)
     lines = text.splitlines() or [""]
+    text = strip_comments(text)  # so needles never match inside a comment
+    m = json.loads(text)
     findings = []
 
     def add(rule, severity, message, needle):

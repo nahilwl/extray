@@ -62,3 +62,13 @@ def test_scan_crx_end_to_end(tmp_path):
 def test_scan_rejects_garbage():
     result = CliRunner().invoke(app, ["scan", "not-an-id"])
     assert result.exit_code == 1
+
+
+def test_manifest_with_comments():
+    text = read("manifest_comments")
+    m = manifest.parse(text)
+    assert m["name"] == "Commented /* not a comment */ Fixture"
+    assert m["homepage_url"] == "https://example.com/a//b"
+    assert m["description"] == 'escaped " quote then // still a string'
+    findings = manifest.analyze(text)
+    assert [(f.rule, f.line) for f in findings] == [("manifest.all-hosts", 11)]
