@@ -1,9 +1,9 @@
-// code built from strings at runtime; lines that must be reported are marked
-chrome.runtime.onMessage.addListener((msg) => {
-  eval(msg.code); // VULN
-  const fn = new Function("a", msg.body); // VULN
-  window.eval(`run(${msg.arg})`); // VULN
-  setTimeout("update('" + msg.id + "')", 100); // VULN
-  setInterval(`poll(${msg.id})`, 1000); // VULN
-  Function(msg.body)(); // VULN
-});
+// code built from strings whose origin is unknown (no tracked source); lines that must be reported are marked
+function applyConfig(config) {
+  eval(config.code); // VULN
+  const fn = new Function("a", config.body); // VULN
+  window.eval(`run(${config.arg})`); // VULN
+  setTimeout("update('" + config.id + "')", 100); // VULN
+  setInterval(`poll(${config.id})`, 1000); // VULN
+  Function(config.body)(); // VULN
+}

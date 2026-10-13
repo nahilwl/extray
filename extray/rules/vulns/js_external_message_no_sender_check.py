@@ -1,3 +1,4 @@
+from extray.context import exposure
 from extray.js.dataflow import SENDER_CHECKS, listeners
 from extray.js.parser import params
 from extray.rules.base import Rule
@@ -17,4 +18,6 @@ class ExternalMessageNoSenderCheck(Rule):
                 continue
             p = params(lst.handler)
             if len(p) < 2 or not js.reads_property(lst.handler, p[1], SENDER_CHECKS):
-                yield js.finding(self, lst.call, "external message listener without sender.url/id/origin check")
+                level = exposure(lst.kind, js.contexts, js.manifest)
+                yield js.finding(self, lst.call, "external message listener without sender.url/id/origin check",
+                                 "medium" if level == "web" else "low")

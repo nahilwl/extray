@@ -74,6 +74,7 @@ class JSFile:
         self.source = source
         self.root = _PARSER.parse(source).root_node
         self.contexts = set()  # extray.context.Context set by the scan, empty when unknown
+        self.manifest = None  # extray.manifest.Manifest set by the scan
 
     def nodes(self, *types: str, root: Node | None = None) -> list[Node]:
         """Every node of the given types under root, in source order (a tree-sitter query, fast on big bundles)."""

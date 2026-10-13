@@ -1,3 +1,4 @@
+from extray.context import exposure
 from extray.js.dataflow import listeners
 from extray.js.parser import params
 from extray.rules.base import Rule
@@ -17,4 +18,6 @@ class MessageNoOriginCheck(Rule):
                 continue
             event = params(lst.handler)
             if not event or not js.reads_property(lst.handler, event[0], {b"origin"}):
-                yield js.finding(self, lst.call, "message listener without event.origin check")
+                level = exposure(lst.kind, js.contexts, js.manifest)
+                yield js.finding(self, lst.call, "message listener without event.origin check",
+                                 "medium" if level == "web" else "low")

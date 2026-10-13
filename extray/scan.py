@@ -27,6 +27,7 @@ def scan(files: dict[str, bytes], max_js_size: int = MAX_JS_SIZE) -> list[Findin
         parsed[name] = JSFile(name, files[name])
     for name, ctxs in contexts(mf, files, parsed).items():
         parsed[name].contexts = ctxs
+        parsed[name].manifest = mf
     for js in parsed.values():
         findings += [f for rule in rules for f in rule.check_js(js)]
     return findings

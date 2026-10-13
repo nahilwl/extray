@@ -121,3 +121,30 @@ def contexts(mf: Manifest, files: dict[str, bytes], parsed: dict[str, JSFile]) -
                     changed = True
 
     return {name: ctxs or {Context("unknown")} for name, ctxs in found.items()}
+
+
+EXPOSURES = ("internal", "sites", "web")  # who can feed a source, from least to most exposed
+EXPOSURE_LABELS = {"internal": "the extension only", "sites": "some websites or extensions", "web": "any website"}
+
+
+def _context_exposure(ctx: Context) -> str:
+    """Who controls the page around code running in this context (its URL, its postMessage calls)."""
+    if ctx.kind in ("content_script", "web_accessible_page") and ctx.matches:
+        return "web" if ctx.all_sites and not ctx.dynamic_url else "sites"
+    return "internal"
+
+
+def exposure(source_kind: str, ctxs: set[Context], mf: Manifest | None) -> str:
+    """How exposed a source is: window messages and page sources depend on where the code runs,
+    external messages on externally_connectable, internal runtime messages only reach the extension."""
+    if source_kind == "runtime_message":
+        return "internal"
+    if source_kind == "external_message":
+        ec = mf.data.get("externally_connectable") if mf else None
+        if not isinstance(ec, dict):
+            return "sites"  # not declared: every other extension can send messages
+        matches = [m for m in ec.get("matches", []) if isinstance(m, str)]
+        if any(all_hosts(m) for m in matches):
+            return "web"
+        return "sites" if matches or "*" in ec.get("ids", []) else "internal"
+    return max((_context_exposure(c) for c in ctxs), key=EXPOSURES.index, default="internal")

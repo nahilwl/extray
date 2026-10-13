@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from tree_sitter import Node
 
+from extray.context import EXPOSURE_LABELS, exposure
 from extray.js.parser import FUNCTION_TYPES, JSFile, args, callee, params, string_value
 
 SCOPE_TYPES = (*FUNCTION_TYPES, "method_definition")
@@ -336,6 +337,19 @@ def flows(js: JSFile) -> list[Flow]:
     return js._flows
 
 
+# severity of a flow by sink kind and exposure of its source
+FLOW_SEVERITY = {
+    "code": {"web": "high", "sites": "medium", "internal": "low"},
+    "html": {"web": "high", "sites": "medium", "internal": "low"},
+    "url": {"web": "medium", "sites": "low", "internal": "low"},
+}
+
+
+def flow_nodes(js: JSFile) -> set[tuple[int, int]]:
+    """Positions of sinks reached by a flow: the pattern rules leave them to the flow rules."""
+    return {(f.node.start_byte, f.node.end_byte) for f in flows(js)}
+
+
 class FlowRule:
     """Mixin for the flow rules: one finding per flow into a sink of `sink_kind`."""
 
@@ -344,6 +358,9 @@ class FlowRule:
     def check_js(self, js):
         for f in flows(js):
             if f.sink.kind == self.sink_kind:
+                level = exposure(f.source.kind, js.contexts, js.manifest)
                 source_line = js.position(f.source.node)[0]
                 sink_line = js.position(f.node)[0]
-                yield js.finding(self, f.node, f"{f.source.label} (L{source_line}) → {f.sink.name} (L{sink_line})")
+                message = (f"{f.source.label} (L{source_line}) → {f.sink.name} (L{sink_line}), "
+                           f"source reachable from {EXPOSURE_LABELS[level]}")
+                yield js.finding(self, f.node, message, FLOW_SEVERITY[self.sink_kind][level])
