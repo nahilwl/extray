@@ -16,3 +16,6 @@ extray = "extray.cli:app"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+markers = ["network: needs internet access (Chrome Web Store), excluded in CI"]

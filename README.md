@@ -1,5 +1,7 @@
 # extray
 
+[![tests](https://github.com/nahilwl/extray/actions/workflows/tests.yml/badge.svg)](https://github.com/nahilwl/extray/actions/workflows/tests.yml)
+
 **ext**ension + **x-ray**: put Chrome extensions under X-ray to find malicious behavior and exploitable vulnerabilities.
 
 ## Install
