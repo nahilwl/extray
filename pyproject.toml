@@ -1,0 +1,18 @@
+[project]
+name = "extray"
+version = "0.1.0"
+description = "X-ray browser extensions: malware verdict, exploitable vulns, version diff."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = ["typer", "rich"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+extray = "extray.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
