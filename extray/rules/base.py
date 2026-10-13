@@ -13,6 +13,7 @@ class Finding:
     line: int
     evidence: str
     column: int = 0  # 1-based, 0 when only the line is meaningful
+    context: str = ""  # where the code runs (content script on all sites, background...)
 
 
 class Rule:

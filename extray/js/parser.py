@@ -73,6 +73,7 @@ class JSFile:
         self.file = file
         self.source = source
         self.root = _PARSER.parse(source).root_node
+        self.contexts = set()  # extray.context.Context set by the scan, empty when unknown
 
     def nodes(self, *types: str, root: Node | None = None) -> list[Node]:
         """Every node of the given types under root, in source order (a tree-sitter query, fast on big bundles)."""
@@ -114,4 +115,5 @@ class JSFile:
     def finding(self, rule, node: Node, message: str, severity: str | None = None) -> Finding:
         line, column = self.position(node)
         code = node.text.decode("utf-8", "replace")
-        return Finding(rule.id, severity or rule.severity, message, self.file, line, snippet(code), column)
+        context = ", ".join(sorted(map(str, self.contexts)))
+        return Finding(rule.id, severity or rule.severity, message, self.file, line, snippet(code), column, context)
