@@ -23,12 +23,30 @@ What is checked:
 
 - **manifest.json**: dangerous permissions, all-hosts access, broad `externally_connectable`,
   HTML exposed in `web_accessible_resources`, weakened CSP, `<all_urls>` content scripts, Manifest V2.
-- **JavaScript** (parsed with tree-sitter, minified or not): `message` listeners that never read
-  `event.origin`, `onMessageExternal` listeners that never check the sender, dynamic code execution
-  (`eval`, `Function`, string timers) and dynamic HTML sinks (`innerHTML`, `document.write`...).
+- **Where each JS file runs**, deduced from the manifest, the `<script>` tags of the HTML pages and
+  imports: content script (on which sites), background, extension page, web-accessible page.
+- **Data flow** inside each function (and its callbacks), from attacker-controlled sources
+  (`event.data` of unchecked `message` listeners, `onMessage`/`onMessageExternal` messages,
+  `location.*`, `document.referrer`, `window.name`) to code execution (`eval`, `Function`, string
+  timers, `executeScript`), HTML (`innerHTML`, `document.write`...) and URLs (`tabs.create/update`,
+  `fetch`, `location`, `window.open`). A finding shows the path: `e.data (L3) → innerHTML (L5)`.
+- **Patterns**: `message` listeners that never read `event.origin`, `onMessageExternal` listeners that
+  never check the sender, dynamic code or HTML without a known source.
 
-Each finding gives the file, line, column and a readable excerpt. JS checks are patterns, not data flow
-yet: a finding is a place to review, not a proven vulnerability.
+Severity combines the sink and who can feed the source:
+
+| Source reachable from | code / HTML sink | URL sink | listener without check |
+|---|---|---|---|
+| any website (content script or web-accessible page on all sites, `externally_connectable` on all sites) | high | medium | medium |
+| some websites or other extensions | medium | low | low |
+| the extension only | low | low | low |
+
+Dynamic code without a known source is `low`, dynamic HTML without one is `info`. Handlers that cannot
+be resolved statically and JS files above `--max-js-size` are reported as `info`, not skipped silently.
+
+Each finding gives the file, line, column, context and a readable excerpt. The analysis stays inside a
+function: data passed to an unknown function is not followed. A finding is a place to review, not a
+proven vulnerability.
 
 ## Rules
 
