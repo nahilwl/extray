@@ -6,7 +6,7 @@ from typer.testing import CliRunner
 
 from extray.cli import app
 from extray.fetch import chrome
-from extray.unpack import extract
+from extray.unpack import extract, load, read_dir
 
 EXT_ID = "a" * 32
 
@@ -123,3 +123,38 @@ def test_cli_reports_extraction_errors_cleanly(tmp_path, data, message):
     assert result.exit_code == 1
     assert isinstance(result.exception, SystemExit)  # no uncaught exception, so no traceback
     assert result.output.startswith("error: ") and message in result.output
+
+
+def make_dir(root, files):
+    for name, data in files.items():
+        (root / name).parent.mkdir(parents=True, exist_ok=True)
+        (root / name).write_bytes(data)
+    return root
+
+
+def test_load_folder(tmp_path):
+    files = {"manifest.json": b"{}", "js/a.js": b"1"}
+    assert load(str(make_dir(tmp_path, files))) == files
+
+
+def test_folder_limits(tmp_path):
+    make_dir(tmp_path, {"a.js": b"x" * 600, "b.js": b"y" * 600})
+    with pytest.raises(ValueError, match="limit is 1"):
+        read_dir(str(tmp_path), max_files=1)
+    with pytest.raises(ValueError, match="more than 1000 bytes"):
+        read_dir(str(tmp_path), max_total=1000)
+
+
+@pytest.mark.parametrize("link", ["file", "folder"])
+def test_folder_refuses_symlinks(tmp_path, link):
+    outside = make_dir(tmp_path / "outside", {"secret": b"key"})
+    ext = make_dir(tmp_path / "ext", {"manifest.json": b"{}"})
+    (ext / "x").symlink_to(outside / "secret" if link == "file" else outside)
+    with pytest.raises(ValueError, match="x: symbolic links are not supported"):
+        read_dir(str(ext))
+
+
+def test_cli_scans_a_folder(tmp_path):
+    make_dir(tmp_path, {"manifest.json": b'{"name": "Folder ext", "manifest_version": 3}', "a.js": b"eval(x);"})
+    result = CliRunner().invoke(app, ["scan", str(tmp_path)], env={"COLUMNS": "200"})
+    assert result.exit_code == 0 and "Folder ext" in result.output and "js.code-exec" in result.output

@@ -21,6 +21,7 @@ Supported on Linux and macOS (Python 3.11+). Windows is not tested.
 ```sh
 extray scan <chrome-web-store-id>   # downloads the latest .crx
 extray scan path/to/extension.crx   # or a .zip
+extray scan ./my-extension/         # unpacked folder, manifest.json at its root
 ```
 
 Findings below `--min-severity` (`info`, `low`, `medium`, `high`; default `low`) are hidden, `-v`

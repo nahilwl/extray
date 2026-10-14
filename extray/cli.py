@@ -19,7 +19,7 @@ def main():
 
 @app.command()
 def scan(
-    target: str = typer.Argument(..., help="Chrome Web Store ID or path to a .crx/.zip"),
+    target: str = typer.Argument(..., help="Chrome Web Store ID, path to a .crx/.zip, or an unpacked extension folder"),
     max_js_size: int = typer.Option(MAX_JS_SIZE, help="Skip JS files bigger than this many bytes"),
     js_timeout: float = typer.Option(JS_TIMEOUT, help="Give up on a JS file after this many seconds"),
     min_severity: Literal["info", "low", "medium", "high"] = typer.Option("low", help="Hide less severe findings"),

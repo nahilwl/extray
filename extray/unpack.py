@@ -1,5 +1,6 @@
 import io
 import lzma
+import os
 import zipfile
 import zlib
 from pathlib import Path
@@ -41,15 +42,41 @@ def extract(data: bytes, max_total=MAX_TOTAL, max_files=MAX_FILES, max_ratio=MAX
     return files
 
 
+def read_dir(root: str, max_total=MAX_TOTAL, max_files=MAX_FILES) -> dict[str, bytes]:
+    """Read an unpacked extension with the same limits as a zip. Symlinks and special files are refused:
+    a link could pull files from outside the folder into the report, a FIFO would block the read."""
+    files, total = {}, 0
+    for dirpath, dirnames, filenames in os.walk(root):  # does not descend into symlinked folders
+        for name in dirnames + filenames:
+            path = os.path.join(dirpath, name)
+            rel = Path(os.path.relpath(path, root)).as_posix()
+            if os.path.islink(path):
+                raise ValueError(f"{rel}: symbolic links are not supported")
+            if name in dirnames:
+                continue
+            if not os.path.isfile(path):
+                raise ValueError(f"{rel}: not a regular file")
+            if len(files) == max_files:
+                raise ValueError(f"folder has more than {max_files} files, limit is {max_files}")
+            total += os.path.getsize(path)
+            if total > max_total:
+                raise ValueError(f"folder holds more than {max_total} bytes, aborted")
+            files[rel] = Path(path).read_bytes()
+    return files
+
+
 def load(target: str) -> dict[str, bytes]:
-    """Return the files of a local .crx/.zip or a Web Store ID, in memory (nothing is written to disk)."""
+    """Return the files of an unpacked extension folder, a local .crx/.zip or a Web Store ID, in memory
+    (nothing is written to disk)."""
     path = Path(target)
+    if path.is_dir():
+        return read_dir(target)
     if path.is_file():
         data = path.read_bytes()
     elif chrome.ID_RE.fullmatch(target):
         data = chrome.download(target)
     else:
-        raise ValueError(f"{target}: not a file nor a Chrome extension ID")
+        raise ValueError(f"{target}: not a file, a folder nor a Chrome extension ID")
     if data[:4] == MAGIC:
         data = crx_to_zip(data)
     return extract(data)
