@@ -67,6 +67,8 @@ One rule per file in `extray/rules/vulns/` or `extray/rules/malware/`, loaded au
 subclass with `id`, `severity`, `description` and `check_manifest` and/or `check_js`. Each JS rule ships
 `tests/fixtures/js/<rule id>/vuln.js` (reported lines marked `VULN`) and `fixed.js` (nothing reported).
 
+The capture at the top of this README is regenerated with `python scripts/screenshot.py`.
+
 ## Responsible disclosure
 
 If extray finds a real vulnerability in a public extension, contact the developer (or its bug bounty
