@@ -2,7 +2,7 @@ import io
 
 from rich.console import Console
 
-from extray.report.terminal import render
+from extray.report.terminal import evidence, render
 from extray.rules.base import Finding
 
 FINDINGS = [Finding(f"r.{s}", s, "msg", "a.js", 1, "") for s in ("high", "low", "info", "info")]
@@ -40,3 +40,9 @@ def test_sorted_by_severity_then_file_and_line():
                 Finding("r.1", "high", "m", "a.js", 20, "")]
     out = output(findings, "info")
     assert sorted(["r.1", "r.2", "r.3", "r.4", "r.5"], key=out.index) == ["r.1", "r.2", "r.3", "r.4", "r.5"]
+
+
+def test_evidence_is_the_first_line_cut():
+    assert evidence("  el.innerHTML = x;\n  more();") == "el.innerHTML = x;"
+    assert evidence("x" * 100) == "x" * 59 + "…"
+    assert evidence("") == ""

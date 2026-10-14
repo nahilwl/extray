@@ -4,6 +4,7 @@ from rich.table import Table
 
 from extray.rules.base import SEVERITIES, Finding
 
+EVIDENCE_CHARS = 60
 COLORS = {"info": "dim", "low": "cyan", "medium": "yellow", "high": "bold red"}
 
 
@@ -12,6 +13,12 @@ def summary(findings: list[Finding], min_severity: str) -> str:
     counts = ", ".join(f"[{COLORS[s]}]{sum(f.severity == s for f in findings)} {s}[/]" for s in reversed(SEVERITIES))
     hidden = sum(SEVERITIES.index(f.severity) < SEVERITIES.index(min_severity) for f in findings)
     return counts + (f" ({hidden} hidden, -v to show)" if hidden else "")
+
+
+def evidence(text: str) -> str:
+    """The line of the finding (first line of the excerpt), cut at EVIDENCE_CHARS."""
+    line = text.strip().split("\n", 1)[0].strip()
+    return line if len(line) <= EVIDENCE_CHARS else line[:EVIDENCE_CHARS - 1] + "…"
 
 
 def coverage(findings: list[Finding], verbose: bool) -> str:
@@ -44,7 +51,7 @@ def render(title: str, findings: list[Finding], min_severity: str = "info", cons
             table.add_column(col, overflow="fold")
         for f in sorted(shown, key=lambda f: (-SEVERITIES.index(f.severity), f.file, f.line, f.column)):
             c = COLORS[f.severity]
-            table.add_row(f"[{c}]{f.severity}[/]", f.rule, escape(f.message), escape(f"{f.file}:{f.line}" + (f":{f.column}" if f.column else "") + (f"\n{f.context}" if f.context else "")), escape(f.evidence))
+            table.add_row(f"[{c}]{f.severity}[/]", f.rule, escape(f.message), escape(f"{f.file}:{f.line}" + (f":{f.column}" if f.column else "") + (f"\n{f.context}" if f.context else "")), escape(evidence(f.evidence)))
         console.print(table)
     if findings:
         console.print(summary(findings, min_severity))
