@@ -2,7 +2,7 @@
 
 [![tests](https://github.com/nahilwl/extray/actions/workflows/tests.yml/badge.svg)](https://github.com/nahilwl/extray/actions/workflows/tests.yml)
 
-![extray scan output: HTML injection flows in a content script running on every website](docs/scan.svg)
+![extray scan output on a demo extension: HTML injection flows in a content script running on every website](docs/scan.svg)
 
 **ext**ension + **x-ray**: put Chrome extensions under X-ray to find malicious behavior and exploitable vulnerabilities.
 
@@ -67,7 +67,8 @@ One rule per file in `extray/rules/vulns/` or `extray/rules/malware/`, loaded au
 subclass with `id`, `severity`, `description` and `check_manifest` and/or `check_js`. Each JS rule ships
 `tests/fixtures/js/<rule id>/vuln.js` (reported lines marked `VULN`) and `fixed.js` (nothing reported).
 
-The capture at the top of this README is regenerated with `python scripts/screenshot.py`.
+The capture at the top of this README scans the demo extension in `docs/demo/`; regenerate it with
+`python scripts/screenshot.py`.
 
 ## Responsible disclosure
 
