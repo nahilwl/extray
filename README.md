@@ -17,6 +17,9 @@ extray scan <chrome-web-store-id>   # downloads the latest .crx
 extray scan path/to/extension.crx   # or a .zip
 ```
 
+Findings below `--min-severity` (`info`, `low`, `medium`, `high`; default `low`) are hidden, `-v`
+shows them all. The last line counts findings per severity and how many are hidden.
+
 Options: `--max-js-size BYTES` skips bigger JS files (default 5 MB), reported as an `info` finding.
 `--js-timeout SECONDS` gives up on a JS file after that time (default 30). Each JS file is parsed in a
 worker process: a file that crashes the parser or times out is reported as an `info` finding and the
