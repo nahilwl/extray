@@ -1,7 +1,7 @@
 [project]
 name = "extray"
 version = "0.3.2"
-description = "X-ray browser extensions: malware verdict, exploitable vulns, version diff."
+description = "Static analysis of browser extensions: risky permissions, execution context and data flows to dangerous sinks"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"

@@ -4,7 +4,7 @@
 
 ![extray scan output on a demo extension: HTML injection flows in a content script running on every website](docs/scan.svg)
 
-**ext**ension + **x-ray**: put Chrome extensions under X-ray to find malicious behavior and exploitable vulnerabilities.
+**ext**ension + **x-ray**: put Chrome extensions under X-ray to find exploitable vulnerabilities and risky permissions.
 
 ## Install
 
@@ -69,6 +69,10 @@ proven vulnerability.
 One rule per file in `extray/rules/vulns/` or `extray/rules/malware/`, loaded automatically: a `Rule`
 subclass with `id`, `severity`, `description` and `check_manifest` and/or `check_js`. Each JS rule ships
 `tests/fixtures/js/<rule id>/vuln.js` (reported lines marked `VULN`) and `fixed.js` (nothing reported).
+
+## Roadmap
+
+- **Malware detection**: rules for malicious behavior, in `extray/rules/malware/` (empty for now).
 
 ## Development
 
