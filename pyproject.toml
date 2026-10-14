@@ -1,6 +1,6 @@
 [project]
 name = "extray"
-version = "0.3.0"
+version = "0.3.1"
 description = "X-ray browser extensions: malware verdict, exploitable vulns, version diff."
 readme = "README.md"
 license = "MIT"

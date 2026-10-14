@@ -2,6 +2,8 @@
 
 [![tests](https://github.com/nahilwl/extray/actions/workflows/tests.yml/badge.svg)](https://github.com/nahilwl/extray/actions/workflows/tests.yml)
 
+![extray scan output: HTML injection flows in a content script running on every website](docs/scan.svg)
+
 **ext**ension + **x-ray**: put Chrome extensions under X-ray to find malicious behavior and exploitable vulnerabilities.
 
 ## Install
@@ -68,4 +70,5 @@ subclass with `id`, `severity`, `description` and `check_manifest` and/or `check
 ## Responsible disclosure
 
 If extray finds a real vulnerability in a public extension, contact the developer (or its bug bounty
-program) before publishing anything.
+program) before publishing anything. See [SECURITY.md](SECURITY.md), which also explains how to report
+a vulnerability in extray itself.
