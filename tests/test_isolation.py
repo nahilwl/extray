@@ -42,3 +42,21 @@ def test_scan_survives_parser_hang(monkeypatch):
     assert time.monotonic() - start < 5
     assert not_analyzed(findings) == {("hang.js", "not analyzed: timeout after 0.5s")}
     assert {f.file for f in findings if f.rule == "js.code-exec"} == {"a.js", "z.js"}
+
+
+def test_cli_warns_about_files_not_analyzed(monkeypatch, tmp_path):
+    import zipfile
+
+    from typer.testing import CliRunner
+
+    from extray.cli import app
+
+    monkeypatch.setattr(scan_module, "JSFile", broken_parser)
+    path = tmp_path / "ext.zip"
+    with zipfile.ZipFile(path, "w") as z:
+        for name, data in {**FILES, "big.js": b"x" * 100}.items():
+            if name != "hang.js":
+                z.writestr(name, data)
+    result = CliRunner().invoke(app, ["scan", str(path), "--max-js-size", "50"], env={"COLUMNS": "200"})
+    assert result.exit_code == 0 and "js.not-analyzed" not in result.output
+    assert "⚠ 3 JS files not analyzed (1 too large, 1 parser crash, 1 parser error) — -v for details" in result.output

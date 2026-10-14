@@ -46,6 +46,7 @@ def test_cli_max_js_size_option(tmp_path):
         z.writestr("big.js", "x" * 11)
     result = CliRunner().invoke(app, ["scan", str(path), "--max-js-size", "10"], env={"COLUMNS": "200"})
     assert result.exit_code == 0 and "js.too-large" not in result.output and "1 hidden" in result.output  # info
+    assert "⚠ 1 JS file not analyzed (1 too large) — -v for details" in result.output  # coverage stays visible
     result = CliRunner().invoke(app, ["scan", str(path), "--max-js-size", "10", "-v"], env={"COLUMNS": "200"})
     assert result.exit_code == 0 and "js.too-large" in result.output
 

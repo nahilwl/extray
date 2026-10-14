@@ -14,6 +14,25 @@ def summary(findings: list[Finding], min_severity: str) -> str:
     return counts + (f" ({hidden} hidden, -v to show)" if hidden else "")
 
 
+def coverage(findings: list[Finding], verbose: bool) -> str:
+    """'⚠ 2 JS files not analyzed (1 parser crash, 1 too large)', empty when every JS file was analyzed."""
+    reasons = {}
+    for f in findings:
+        if f.rule == "js.too-large":
+            reason = "too large"
+        elif f.rule == "js.not-analyzed":
+            reason = ("parser crash" if "parser crashed" in f.message else "timeout" if "timeout" in f.message
+                      else "parser error")
+        else:
+            continue
+        reasons[reason] = reasons.get(reason, 0) + 1
+    if not reasons:
+        return ""
+    total = sum(reasons.values())
+    details = ", ".join(f"{n} {r}" for r, n in reasons.items())
+    return f"[yellow]⚠ {total} JS file{'s' * (total > 1)} not analyzed ({details})[/]" + ("" if verbose else " — -v for details")
+
+
 def render(title: str, findings: list[Finding], min_severity: str = "info", console: Console | None = None) -> None:
     console = console or Console()
     shown = [f for f in findings if SEVERITIES.index(f.severity) >= SEVERITIES.index(min_severity)]
@@ -29,3 +48,5 @@ def render(title: str, findings: list[Finding], min_severity: str = "info", cons
         console.print(table)
     if findings:
         console.print(summary(findings, min_severity))
+    if warning := coverage(findings, min_severity == "info"):
+        console.print(warning)
