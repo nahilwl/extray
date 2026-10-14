@@ -32,3 +32,11 @@ def test_everything_hidden():
 
 def test_no_findings():
     assert output([], "low").splitlines() == ["ext — no findings"]
+
+
+def test_sorted_by_severity_then_file_and_line():
+    findings = [Finding("r.4", "low", "m", "b.js", 1, ""), Finding("r.2", "high", "m", "b.js", 9, ""),
+                Finding("r.5", "info", "m", "a.js", 1, ""), Finding("r.3", "low", "m", "a.js", 7, ""),
+                Finding("r.1", "high", "m", "a.js", 20, "")]
+    out = output(findings, "info")
+    assert sorted(["r.1", "r.2", "r.3", "r.4", "r.5"], key=out.index) == ["r.1", "r.2", "r.3", "r.4", "r.5"]
