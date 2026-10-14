@@ -10,6 +10,8 @@
 pip install -e '.[dev]'
 ```
 
+Supported on Linux and macOS (Python 3.11+). Windows is not tested.
+
 ## Usage
 
 ```sh
