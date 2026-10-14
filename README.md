@@ -9,8 +9,10 @@
 ## Install
 
 ```sh
-pip install -e '.[dev]'
+pipx install git+https://github.com/nahilwl/extray
 ```
+
+No pipx yet? `sudo apt install pipx` on Ubuntu/Debian, `brew install pipx` on macOS.
 
 Supported on Linux and macOS (Python 3.11+). Windows is not tested.
 
@@ -66,6 +68,16 @@ proven vulnerability.
 One rule per file in `extray/rules/vulns/` or `extray/rules/malware/`, loaded automatically: a `Rule`
 subclass with `id`, `severity`, `description` and `check_manifest` and/or `check_js`. Each JS rule ships
 `tests/fixtures/js/<rule id>/vuln.js` (reported lines marked `VULN`) and `fixed.js` (nothing reported).
+
+## Development
+
+```sh
+git clone https://github.com/nahilwl/extray
+cd extray
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e '.[dev]'
+pytest
+```
 
 The capture at the top of this README scans the demo extension in `docs/demo/`; regenerate it with
 `python scripts/screenshot.py`.
