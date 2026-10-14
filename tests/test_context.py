@@ -1,6 +1,6 @@
 import json
 
-from extray.context import Context, contexts
+from extray.context import Context, contexts, imported_files
 from extray.js.parser import JSFile
 from extray.manifest import Manifest
 from extray.scan import scan
@@ -42,8 +42,8 @@ FILES = {
 
 def run(files=FILES):
     mf = Manifest.from_text(files["manifest.json"].decode())
-    parsed = {n: JSFile(n, d) for n, d in files.items() if n.endswith(".js")}
-    return contexts(mf, files, parsed)
+    imports = {n: imported_files(JSFile(n, d)) for n, d in files.items() if n.endswith(".js")}
+    return contexts(mf, files, imports)
 
 
 def kinds(result, name):

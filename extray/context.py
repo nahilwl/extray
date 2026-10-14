@@ -60,7 +60,7 @@ def _resolve(base_file: str, ref, bare_is_relative: bool = True) -> str | None:
     return posixpath.normpath(posixpath.join(posixpath.dirname(base_file), ref))
 
 
-def _imports(js: JSFile) -> list[str]:
+def imported_files(js: JSFile) -> list[str]:
     """Files loaded by a JS file: import/export ... from, import("..."), importScripts("...")."""
     refs = [(string_value(n.child_by_field_name("source")), False)
             for n in js.nodes("import_statement", "export_statement") if n.child_by_field_name("source")]
@@ -84,9 +84,10 @@ def _page_context(mf: Manifest, page: str) -> Context:
     return Context("extension_page", page=page)
 
 
-def contexts(mf: Manifest, files: dict[str, bytes], parsed: dict[str, JSFile]) -> dict[str, set[Context]]:
-    """Contexts of every parsed JS file; a file can run in several, and unreferenced ones are 'unknown'."""
-    found: dict[str, set[Context]] = {name: set() for name in parsed}
+def contexts(mf: Manifest, files: dict[str, bytes], imports: dict[str, list[str]]) -> dict[str, set[Context]]:
+    """Contexts of every parsed JS file, given the files each one imports (see imported_files);
+    a file can run in several, and unreferenced ones are 'unknown'."""
+    found: dict[str, set[Context]] = {name: set() for name in imports}
 
     def add(path, ctx):
         if path in found:
@@ -110,7 +111,6 @@ def contexts(mf: Manifest, files: dict[str, bytes], parsed: dict[str, JSFile]) -
             add(_resolve(page, src), ctx)
 
     # imported files run wherever their importer runs, transitively
-    imports = {name: _imports(js) for name, js in parsed.items()}
     changed = True
     while changed:
         changed = False
